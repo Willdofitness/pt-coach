@@ -1,0 +1,153 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL") 
+}
+
+enum Role {
+  COACH
+  CLIENT
+}
+
+enum WorkoutStatus {
+  PLANNED
+  COMPLETED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  role      Role     @default(COACH)
+  createdAt DateTime @default(now())
+
+  clients Client[] @relation("CoachClients")
+}
+
+model Client {
+  id        String    @id @default(cuid())
+  coachId   String
+  coach     User      @relation("CoachClients", fields: [coachId], references: [id])
+  name      String
+  email     String?
+  dob       DateTime?
+  sex       String?
+  goals     String?
+  flags     String?
+  createdAt DateTime  @default(now())
+
+  programs    Program[]
+  workouts    Workout[]
+  metrics     Metric[]
+  notes       Note[]
+  attachments Attachment[]
+}
+
+model Program {
+  id         String   @id @default(cuid())
+  title      String
+  phase      String?
+  weekCount  Int      @default(4)
+  isTemplate Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  // Optional: a program can be attached to a client; otherwise it serves as a template
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id])
+
+  workouts Workout[]
+}
+
+model Exercise {
+  id           String   @id @default(cuid())
+  name         String
+  category     String?
+  defaultTempo String?
+  defaultRest  Int?
+  videoUrl     String?
+  cues         String?
+  createdAt    DateTime @default(now())
+
+  workoutExercises WorkoutExercise[]
+}
+
+model Workout {
+  id        String        @id @default(cuid())
+  title     String
+  date      DateTime?
+  status    WorkoutStatus @default(PLANNED)
+  notes     String?
+  createdAt DateTime      @default(now())
+
+  programId String?
+  program   Program? @relation(fields: [programId], references: [id])
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  workoutExercises WorkoutExercise[]
+}
+
+model WorkoutExercise {
+  id           String @id @default(cuid())
+  orderIndex   Int    @default(0)
+  prescription Json?
+
+  workoutId String
+  workout   Workout @relation(fields: [workoutId], references: [id])
+
+  exerciseId String
+  exercise   Exercise @relation(fields: [exerciseId], references: [id])
+
+  sets WorkoutSet[]
+}
+
+model WorkoutSet {
+  id           String  @id @default(cuid())
+  setNumber    Int
+  targetReps   Int?
+  achievedReps Int?
+  weight       Float?
+  rpe          Float?
+  notes        String?
+
+  workoutExerciseId String
+  workoutExercise   WorkoutExercise @relation(fields: [workoutExerciseId], references: [id])
+}
+
+model Metric {
+  id         String   @id @default(cuid())
+  date       DateTime
+  weightKg   Float?
+  bodyFatPct Float?
+  girths     Json?
+  est1Rms    Json?
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+}
+
+model Attachment {
+  id      String    @id @default(cuid())
+  type    String
+  url     String
+  takenAt DateTime?
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  content   String
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+}
